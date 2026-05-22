@@ -1,0 +1,10 @@
+.env
+.git
+.github/workflows/
+.osgrep
+__pycache__/
+*.pyc
+.pytest_cache/
+investigations/
+tests/
+robin-test-*/

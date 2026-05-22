@@ -1,0 +1,12 @@
+services:
+  onionintel:
+    build: .
+    image: onionintel:latest
+    container_name: onionintel
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./investigations:/app/investigations
+    restart: unless-stopped
