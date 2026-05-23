@@ -84,6 +84,7 @@ class PipelineSmokeTests(unittest.TestCase):
                                 search_func=lambda *_args, **_kwargs: search_payload,
                                 scrape_func=lambda *_args, **_kwargs: scrape_payload,
                                 tor_check_func=lambda: {"status": "up"},
+                                persist_state=False,
                             )
 
         self.assertEqual(state.refined_query, "refined")
@@ -175,6 +176,7 @@ class PipelineSmokeTests(unittest.TestCase):
                         search_func=lambda query, max_workers=1: collect_sources(query, max_workers=max_workers, sources=[source]),
                         scrape_func=lambda *_args, **_kwargs: scrape_payload,
                         tor_check_func=lambda: {"status": "up"},
+                        persist_state=False,
                     )
 
         self.assertEqual(state.raw_results[0]["connector_id"], "fake_search")

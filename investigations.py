@@ -96,16 +96,31 @@ def save_investigation(
         ],
         "summary": summary,
     }
+    data["investigation_file"] = fname
+    try:
+        from storage.repository import save_investigation_payload
+
+        save_investigation_payload(data, db_path=directory / "onionintel.sqlite3")
+    except Exception:
+        pass
     (directory / fname).write_text(json.dumps(data, indent=2), encoding="utf-8")
     return fname
 
 
 def load_investigations(directory: Path = INVESTIGATIONS_DIR) -> List[Dict[str, object]]:
     """Return list of saved investigations sorted newest-first."""
+    try:
+        from storage.repository import list_investigations
+
+        stored = list_investigations(db_path=directory / "onionintel.sqlite3")
+    except Exception:
+        stored = []
+
+    seen_run_ids = {str(item.get("run_id") or "") for item in stored if item.get("run_id")}
     if not directory.exists():
-        return []
+        return stored
     files = sorted(directory.glob("investigation_*.json"), reverse=True)
-    investigations = []
+    investigations = list(stored)
     for file_path in files:
         try:
             data = json.loads(file_path.read_text(encoding="utf-8"))
@@ -135,6 +150,8 @@ def load_investigations(directory: Path = INVESTIGATIONS_DIR) -> List[Dict[str, 
             data.setdefault("synthesis_report", {})
             data.setdefault("document_hashes", [])
             data["_filename"] = file_path.name
+            if data.get("run_id") and data["run_id"] in seen_run_ids:
+                continue
             investigations.append(data)
         except Exception:
             continue

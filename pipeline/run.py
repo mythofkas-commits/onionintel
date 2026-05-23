@@ -41,6 +41,7 @@ from query_expansion import (
 )
 from ranking.relevance import rank_documents, rank_search_results
 from scrape import scrape_multiple_documents
+from storage.repository import save_run_state
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,8 @@ def run_pipeline(
     tor_check_func: Callable[[], dict[str, Any]] = check_tor_proxy,
     summary_stream_handler=None,
     save_result: bool = True,
+    persist_state: bool = True,
+    db_path=None,
 ) -> RunState:
     state = RunState(
         run_id=config.run_id,
@@ -87,6 +90,11 @@ def run_pipeline(
     def mark(stage: str, status: str, **metadata: Any) -> None:
         state.add_stage(stage, status, **metadata)
         _log_stage(state.run_id, stage, status, **metadata)
+        if persist_state:
+            try:
+                save_run_state(state, db_path=db_path)
+            except Exception:
+                logger.warning("Unable to persist run state for stage=%s status=%s", stage, status, exc_info=True)
 
     mark("refine_query", "started")
     state.refined_query = refine_query(refine_llm, config.query)

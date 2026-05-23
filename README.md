@@ -24,6 +24,8 @@ OnionIntel runs a local Streamlit web app backed by Tor. It searches configurabl
 - Deterministic artifact extraction for onion URLs, clearnet URLs, emails, domains, IPs, CVEs, hashes, cryptocurrency addresses, and handles.
 - Safer scraping with URL validation, redirect limits, content caps, duplicate handling, unsupported content-type handling, and prompt hardening.
 - Metadata-rich investigation persistence with source provenance, source health snapshot, extracted artifacts, scraped URLs, query plan, query runs, and final summary.
+- SQLite-backed durable evidence storage for replayable runs, documents, entities, claims, source reliability, and report exports.
+- Local FastAPI boundary for runs, investigations, evidence objects, source health, and JSON/Markdown exports.
 - Multi-provider LLM support for OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, and llama.cpp-compatible local endpoints.
 - Optional model routing for cheaper query expansion and triage models plus stronger final report models.
 
@@ -83,6 +85,12 @@ Open:
 http://localhost:8501
 ```
 
+The local API is exposed at:
+
+```text
+http://localhost:8000
+```
+
 ### 3. Run with Docker directly
 
 ```bash
@@ -113,6 +121,7 @@ Important paths:
 
 - `.env`: local provider keys and model endpoints. Do not commit real secrets.
 - `investigations/`: saved investigation JSON files.
+- `investigations/onionintel.sqlite3`: local durable evidence store for new runs.
 - `sources.yml`: dark web source registry.
 
 ## Source Registry

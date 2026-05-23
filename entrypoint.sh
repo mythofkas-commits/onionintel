@@ -32,5 +32,8 @@ else
   echo "Tor circuit is ready."
 fi
 
+echo "Starting OnionIntel API..."
+uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+
 echo "Starting Robin: AI-Powered Dark Web OSINT Tool..."
 exec streamlit run ui.py --server.port=8501 --server.address=0.0.0.0
