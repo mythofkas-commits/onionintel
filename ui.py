@@ -187,6 +187,121 @@ def render_artifacts(artifacts: dict, host=st):
     host.dataframe(rows, use_container_width=True, hide_index=True)
 
 
+def render_intelligence_layers(state: dict, host=st):
+    documents = state.get("documents", []) or []
+    relevance_scores = state.get("relevance_scores", []) or []
+    ranked_documents = state.get("ranked_documents", []) or []
+    entities = state.get("entities", []) or []
+    relationships = state.get("relationships", []) or []
+    claims = state.get("claims", []) or []
+    pivots = state.get("pivot_suggestions", []) or []
+
+    with host.expander("Documents", expanded=False):
+        if documents:
+            host.dataframe(
+                [
+                    {
+                        "doc_id": doc.get("doc_id", ""),
+                        "title": doc.get("title", ""),
+                        "url": doc.get("final_url") or doc.get("url", ""),
+                        "status": doc.get("status_code", ""),
+                        "content_type": doc.get("content_type", ""),
+                        "chars": len(doc.get("extracted_text") or ""),
+                        "text_hash": doc.get("text_hash", ""),
+                    }
+                    for doc in documents
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            host.caption("No documents captured.")
+
+    with host.expander("Relevance Ranking", expanded=False):
+        rows = ranked_documents or relevance_scores
+        if rows:
+            host.dataframe(rows, use_container_width=True, hide_index=True)
+        else:
+            host.caption("No ranking records captured.")
+
+    with host.expander("Entities", expanded=False):
+        if entities:
+            host.dataframe(
+                [
+                    {
+                        "entity_id": item.get("entity_id", ""),
+                        "type": item.get("entity_type", ""),
+                        "canonical": item.get("canonical_value", ""),
+                        "raw_values": ", ".join(item.get("raw_values", [])[:3]),
+                        "artifact_count": (item.get("metadata") or {}).get("artifact_count", len(item.get("artifact_ids", []))),
+                        "source_urls": ", ".join((item.get("metadata") or {}).get("source_urls", [])[:2]),
+                    }
+                    for item in entities
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            host.caption("No entities normalized.")
+
+    with host.expander("Relationships", expanded=False):
+        if relationships:
+            host.dataframe(
+                [
+                    {
+                        "source": item.get("source_id", ""),
+                        "type": item.get("relationship_type", ""),
+                        "target": item.get("target_id", ""),
+                        "evidence_doc_ids": ", ".join(item.get("evidence_doc_ids", [])),
+                    }
+                    for item in relationships
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            host.caption("No relationships built.")
+
+    with host.expander("Claims", expanded=False):
+        if claims:
+            host.dataframe(
+                [
+                    {
+                        "claim_id": item.get("claim_id", ""),
+                        "confidence": item.get("confidence_label", ""),
+                        "requires_review": item.get("requires_review", True),
+                        "claim": item.get("claim_text", ""),
+                        "evidence_doc_ids": ", ".join(item.get("evidence_doc_ids", [])),
+                        "evidence_quotes": " | ".join(item.get("evidence_quotes", [])[:2]),
+                    }
+                    for item in claims
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            host.caption("No evidence-linked claims generated.")
+
+    with host.expander("Pivot Suggestions", expanded=False):
+        if pivots:
+            host.dataframe(
+                [
+                    {
+                        "query": item.get("query", ""),
+                        "type": item.get("pivot_type", ""),
+                        "score": item.get("score", 0),
+                        "reason": item.get("reason", ""),
+                        "evidence_doc_ids": ", ".join(item.get("evidence_doc_ids", [])),
+                    }
+                    for item in pivots
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            host.caption("No pivots suggested.")
+
+
 def _source_names_for_result(item: dict) -> str:
     names = item.get("found_by_sources", []) or [item.get("source", "unknown")]
     return ", ".join(str(name or "unknown") for name in names)
@@ -524,6 +639,7 @@ if "loaded_investigation" in st.session_state and not run_button:
         render_artifacts(inv.get("artifacts", {}))
     with st.expander("AI Search Plan", expanded=False):
         render_query_audit(inv.get("query_plan", {}), inv.get("query_runs", []))
+    render_intelligence_layers(inv)
     st.markdown(inv["summary"])
     if st.button("✖ Clear"):
         del st.session_state["loaded_investigation"]
@@ -555,6 +671,7 @@ if run_button and query:
         "query_expansion_mode_used",
         "search_intent_used",
         "model_routing_used",
+        "pipeline_state",
     ]:
         st.session_state.pop(k, None)
 
@@ -704,6 +821,7 @@ if run_button and query:
             render_query_audit(st.session_state.query_plan, st.session_state.query_runs)
         with st.expander("Deterministic Artifacts", expanded=False):
             render_artifacts(st.session_state.artifacts)
+        render_intelligence_layers(st.session_state.pipeline_state)
 
     with findings_placeholder.container():
         st.subheader(":red[🔎 Findings]", anchor=None, divider="gray")

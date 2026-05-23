@@ -8,3 +8,5 @@ __pycache__/
 investigations/
 tests/
 robin-test-*/
+.venv/
+venv/

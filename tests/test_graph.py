@@ -25,9 +25,9 @@ class RelationshipGraphTests(unittest.TestCase):
         graph = build_relationship_graph(entities, relationships)
 
         rel_types = {relationship.relationship_type for relationship in relationships}
-        self.assertIn("MENTIONS", rel_types)
-        self.assertIn("BELONGS_TO_DOMAIN", rel_types)
-        self.assertIn("SEEN_WITH", rel_types)
+        self.assertIn("DOCUMENT_MENTIONS_ENTITY", rel_types)
+        self.assertIn("URL_HAS_HOST", rel_types)
+        self.assertIn("ENTITY_CO_OCCURS_WITH_ENTITY", rel_types)
         self.assertGreaterEqual(graph.number_of_nodes(), 2)
 
 

@@ -80,16 +80,22 @@ class PipelineSmokeTests(unittest.TestCase):
                             )
 
         self.assertEqual(state.refined_query, "refined")
-        self.assertEqual(state.synthesis_report.summary, "summary")
+        self.assertIn("Evidence-backed findings", state.synthesis_report.summary)
         self.assertEqual(len(state.documents), 1)
         self.assertTrue(state.typed_artifacts)
         self.assertTrue(state.entities)
         self.assertTrue(state.relationships)
+        self.assertTrue(state.relevance_scores)
+        self.assertTrue(state.ranked_documents)
+        self.assertTrue(state.pivot_suggestions)
+        self.assertTrue(state.claims)
         save_kwargs = save_mock.call_args.kwargs
         self.assertEqual(save_kwargs["schema_version"], "2.0")
         self.assertEqual(save_kwargs["run_id"], state.run_id)
         self.assertTrue(save_kwargs["stage_status"])
         self.assertTrue(save_kwargs["documents"])
+        self.assertTrue(save_kwargs["claims"])
+        self.assertTrue(save_kwargs["synthesis_report"])
 
 
 if __name__ == "__main__":

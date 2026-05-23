@@ -6,6 +6,8 @@ It is designed for lawful cybersecurity research, cyber threat intelligence, bra
 
 > Legal and safety notice: use OnionIntel only for lawful research and defensive investigations. Do not use it to access, acquire, distribute, or act on illegal material. Dark web sources are unstable and may expose offensive, fraudulent, or harmful content.
 
+> Deployment notice: this project is intended for local, single-user investigative research. Do not expose the Streamlit app on an untrusted network without adding authentication and access controls.
+
 ## What It Does
 
 OnionIntel runs a local Streamlit web app backed by Tor. It searches configurable onion and clearnet dark web search sources, records source health, deduplicates and annotates results, extracts investigation artifacts, optionally uses an LLM for query planning and report writing, and saves a JSON audit trail for each investigation.

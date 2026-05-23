@@ -42,6 +42,11 @@ def save_investigation(
     typed_artifacts: Optional[list] = None,
     entities: Optional[list] = None,
     relationships: Optional[list] = None,
+    relevance_scores: Optional[list] = None,
+    ranked_documents: Optional[list] = None,
+    pivot_suggestions: Optional[list] = None,
+    claims: Optional[list] = None,
+    synthesis_report: Optional[dict] = None,
     directory: Path = INVESTIGATIONS_DIR,
 ) -> str:
     """Save a completed investigation to disk. Returns the filename."""
@@ -74,6 +79,11 @@ def save_investigation(
         "typed_artifacts": typed_artifacts or [],
         "entities": entities or [],
         "relationships": relationships or [],
+        "relevance_scores": relevance_scores or [],
+        "ranked_documents": ranked_documents or [],
+        "pivot_suggestions": pivot_suggestions or [],
+        "claims": claims or [],
+        "synthesis_report": synthesis_report or {},
         "document_hashes": [
             {
                 "doc_id": item.get("doc_id"),
@@ -118,6 +128,11 @@ def load_investigations(directory: Path = INVESTIGATIONS_DIR) -> List[Dict[str, 
             data.setdefault("typed_artifacts", [])
             data.setdefault("entities", [])
             data.setdefault("relationships", [])
+            data.setdefault("relevance_scores", [])
+            data.setdefault("ranked_documents", [])
+            data.setdefault("pivot_suggestions", [])
+            data.setdefault("claims", [])
+            data.setdefault("synthesis_report", {})
             data.setdefault("document_hashes", [])
             data["_filename"] = file_path.name
             investigations.append(data)

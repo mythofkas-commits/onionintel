@@ -46,6 +46,11 @@ class RunConfig(OnionIntelModel):
     max_scrape: int = 10
     search_workers: int = 12
     scrape_workers: int = 4
+    use_legacy_llm_filter: bool = False
+    enable_ai_relevance: bool = False
+    enable_claim_extraction: bool = True
+    enable_claim_synthesis: bool = True
+    enable_pivot_suggestions: bool = True
     run_id: str = Field(default_factory=lambda: new_id("run"))
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -251,6 +256,28 @@ class Relationship(OnionIntelModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class RelevanceScore(OnionIntelModel):
+    target_id: str
+    target_type: str
+    score: float = 0.0
+    reasons: list[str] = Field(default_factory=list)
+    matched_terms: list[str] = Field(default_factory=list)
+    model_assisted: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class PivotCandidate(OnionIntelModel):
+    pivot_id: str
+    query: str
+    pivot_type: str
+    value: str
+    score: float = 0.0
+    reason: str = ""
+    source_entity_ids: list[str] = Field(default_factory=list)
+    evidence_doc_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class EnrichmentRecord(OnionIntelModel):
     enrichment_id: str
     entity_id: str
@@ -269,6 +296,10 @@ class Claim(OnionIntelModel):
     evidence_doc_ids: list[str] = Field(default_factory=list)
     evidence_quotes: list[str] = Field(default_factory=list)
     confidence: float = 0.0
+    confidence_label: str = "low"
+    requires_review: bool = True
+    extraction_method: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SynthesisReport(OnionIntelModel):
@@ -301,6 +332,9 @@ class RunState(OnionIntelModel):
     typed_artifacts: list[Artifact] = Field(default_factory=list)
     entities: list[Entity] = Field(default_factory=list)
     relationships: list[Relationship] = Field(default_factory=list)
+    relevance_scores: list[RelevanceScore] = Field(default_factory=list)
+    ranked_documents: list[dict[str, Any]] = Field(default_factory=list)
+    pivot_suggestions: list[PivotCandidate] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)
     synthesis_report: SynthesisReport = Field(default_factory=SynthesisReport)
     search_status: list[dict[str, Any]] = Field(default_factory=list)
