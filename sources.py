@@ -16,6 +16,8 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from registry.loaders import load_source_specs, source_spec_to_config
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
@@ -122,31 +124,10 @@ def _load_simple_sources_yaml(text: str) -> List[Dict[str, object]]:
 
 def load_source_configs(path: Path = SOURCE_REGISTRY_PATH) -> List[SourceConfig]:
     try:
-        raw_entries = _load_simple_sources_yaml(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise SourceRegistryError(f"Invalid JSON/YAML source registry: {exc}") from exc
-
-    configs: List[SourceConfig] = []
-    for idx, entry in enumerate(raw_entries, start=1):
-        if not isinstance(entry, dict):
-            raise SourceRegistryError(f"Source #{idx} must be a mapping")
-        name = str(entry.get("name") or "").strip()
-        url_template = str(entry.get("url_template") or entry.get("url") or "").strip()
-        if not name:
-            raise SourceRegistryError(f"Source #{idx} is missing name")
-        if not url_template or "{query}" not in url_template:
-            raise SourceRegistryError(f"Source '{name}' must include url_template with {{query}}")
-        configs.append(
-            SourceConfig(
-                name=name,
-                url_template=url_template,
-                enabled=bool(entry.get("enabled", True)),
-                parser=str(entry.get("parser") or "generic").strip() or "generic",
-                timeout=int(entry.get("timeout") or 40),
-                notes=str(entry.get("notes") or "").strip(),
-            )
-        )
-    return configs
+        specs = load_source_specs(path)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise SourceRegistryError(f"Invalid source registry: {exc}") from exc
+    return [source_spec_to_config(spec) for spec in specs]
 
 
 def get_enabled_sources(skip_unhealthy: bool = True) -> List[SourceConfig]:

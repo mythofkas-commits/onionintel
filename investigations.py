@@ -1,9 +1,20 @@
 import json
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from domain.models import SCHEMA_VERSION
+
 INVESTIGATIONS_DIR = Path("investigations")
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _new_run_id() -> str:
+    return f"run_{uuid.uuid4().hex}"
 
 
 def save_investigation(
@@ -22,14 +33,26 @@ def save_investigation(
     query_expansion_mode: Optional[str] = None,
     intent_metadata: Optional[dict] = None,
     model_routing: Optional[dict] = None,
+    run_id: Optional[str] = None,
+    schema_version: str = SCHEMA_VERSION,
+    stage_status: Optional[list] = None,
+    scrape_status: Optional[list] = None,
+    documents: Optional[list] = None,
+    fetch_records: Optional[list] = None,
+    typed_artifacts: Optional[list] = None,
+    entities: Optional[list] = None,
+    relationships: Optional[list] = None,
     directory: Path = INVESTIGATIONS_DIR,
 ) -> str:
     """Save a completed investigation to disk. Returns the filename."""
     directory.mkdir(exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    fname = f"investigation_{timestamp}.json"
+    run_id = run_id or _new_run_id()
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    fname = f"investigation_{timestamp}_{run_id[-8:]}.json"
     data = {
-        "timestamp": datetime.now().isoformat(),
+        "schema_version": schema_version,
+        "run_id": run_id,
+        "timestamp": _now_iso(),
         "query": query,
         "refined_query": refined_query,
         "model": model,
@@ -44,6 +67,23 @@ def save_investigation(
         "query_expansion_mode": query_expansion_mode or "off",
         "intent_metadata": intent_metadata or {},
         "model_routing": model_routing or {},
+        "stage_status": stage_status or [],
+        "scrape_status": scrape_status or [],
+        "documents": documents or [],
+        "fetch_records": fetch_records or [],
+        "typed_artifacts": typed_artifacts or [],
+        "entities": entities or [],
+        "relationships": relationships or [],
+        "document_hashes": [
+            {
+                "doc_id": item.get("doc_id"),
+                "url": item.get("url"),
+                "final_url": item.get("final_url"),
+                "text_hash": item.get("text_hash"),
+                "content_hash": item.get("content_hash"),
+            }
+            for item in documents or []
+        ],
         "summary": summary,
     }
     (directory / fname).write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -69,6 +109,16 @@ def load_investigations(directory: Path = INVESTIGATIONS_DIR) -> List[Dict[str, 
             data.setdefault("query_expansion_mode", "off")
             data.setdefault("intent_metadata", {})
             data.setdefault("model_routing", {})
+            data.setdefault("schema_version", "1.0")
+            data.setdefault("run_id", "")
+            data.setdefault("stage_status", [])
+            data.setdefault("scrape_status", [])
+            data.setdefault("documents", [])
+            data.setdefault("fetch_records", [])
+            data.setdefault("typed_artifacts", [])
+            data.setdefault("entities", [])
+            data.setdefault("relationships", [])
+            data.setdefault("document_hashes", [])
             data["_filename"] = file_path.name
             investigations.append(data)
         except Exception:

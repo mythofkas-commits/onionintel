@@ -77,6 +77,22 @@ class ScrapeSafetyTests(unittest.TestCase):
 
         self.assertEqual(list(result), ["http://targetabcdefghijklmnop.onion"])
 
+    def test_document_output_keeps_full_internal_text_before_display_truncation(self):
+        body = ("alpha " * 600).encode("utf-8")
+        session = FakeSession([FakeResponse(200, chunks=[b"<html><body>", body, b"</body></html>"])])
+        with patch.object(scrape, "_get_session", return_value=session):
+            payload = scrape.scrape_multiple_documents(
+                [{"link": "http://targetabcdefghijklmnop.onion", "title": "Long"}],
+                max_workers=1,
+            )
+
+        display_text = payload["content"]["http://targetabcdefghijklmnop.onion"]
+        document = payload["documents"][0]
+        self.assertLessEqual(len(display_text), scrape.MAX_RETURN_CHARS)
+        self.assertGreater(len(document["extracted_text"]), scrape.MAX_RETURN_CHARS)
+        self.assertTrue(document["text_hash"])
+        self.assertEqual(payload["status"][0]["doc_id"], document["doc_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

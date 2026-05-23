@@ -1,12 +1,18 @@
 services:
   onionintel:
     build: .
-    image: onionintel:latest
-    container_name: onionintel
+    image: robin:reliable-v1
+    container_name: robin
     env_file:
-      - .env
+      - path: .env
+        required: false
     ports:
       - "8501:8501"
+    entrypoint:
+      - /bin/bash
+      - -lc
+      - sed 's/\r$//' /app/entrypoint.sh > /tmp/entrypoint.sh && exec /bin/bash /tmp/entrypoint.sh
     volumes:
+      - .:/app
       - ./investigations:/app/investigations
     restart: unless-stopped

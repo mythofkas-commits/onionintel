@@ -1,4 +1,7 @@
 bs4
+pydantic>=2,<3
+PyYAML>=6,<7
+networkx>=3,<4
 pysocks
 requests
 streamlit

@@ -1,8 +1,5 @@
 import json
 import re
-import openai
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from llm_utils import _common_llm_params, resolve_model_config, get_model_choices
 from config import (
     OPENAI_API_KEY,
@@ -15,6 +12,17 @@ import logging
 import warnings
 
 warnings.filterwarnings("ignore")
+
+
+def _prompt_chain(llm, messages):
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
+
+    return ChatPromptTemplate(messages) | llm | StrOutputParser()
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return exc.__class__.__name__ == "RateLimitError"
 
 
 def get_llm(model_choice):
@@ -83,10 +91,7 @@ def refine_query(llm, user_input):
 
     INPUT:
     """
-    prompt_template = ChatPromptTemplate(
-        [("system", system_prompt), ("user", "{query}")]
-    )
-    chain = prompt_template | llm | StrOutputParser()
+    chain = _prompt_chain(llm, [("system", system_prompt), ("user", "{query}")])
     return chain.invoke({"query": user_input})
 
 
@@ -108,13 +113,12 @@ def filter_results(llm, query, results):
 
     final_str = _generate_final_string(results)
 
-    prompt_template = ChatPromptTemplate(
-        [("system", system_prompt), ("user", "{results}")]
-    )
-    chain = prompt_template | llm | StrOutputParser()
+    chain = _prompt_chain(llm, [("system", system_prompt), ("user", "{results}")])
     try:
         result_indices = chain.invoke({"query": query, "results": final_str})
-    except openai.RateLimitError as e:
+    except Exception as e:
+        if not _is_rate_limit_error(e):
+            raise
         print(
             f"Rate limit error: {e} \n Truncating to Web titles only with 30 characters"
         )
@@ -345,8 +349,5 @@ def generate_summary(
         },
         "scraped_pages_untrusted": content,
     }
-    prompt_template = ChatPromptTemplate(
-        [("system", system_prompt), ("user", "{content}")]
-    )
-    chain = prompt_template | llm | StrOutputParser()
+    chain = _prompt_chain(llm, [("system", system_prompt), ("user", "{content}")])
     return chain.invoke({"query": query, "content": json.dumps(payload, indent=2)})

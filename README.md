@@ -66,6 +66,15 @@ OLLAMA_BASE_URL=http://host.docker.internal:11434
 docker compose up --build
 ```
 
+The Compose setup builds the improved Robin/OnionIntel image as
+`robin:reliable-v1` and bind-mounts this checkout into `/app`, so local repo
+changes are reflected in the running `robin` container after Streamlit reloads.
+Rebuild only when dependencies or the Dockerfile change:
+
+```bash
+docker compose up -d --build --force-recreate
+```
+
 Open:
 
 ```text

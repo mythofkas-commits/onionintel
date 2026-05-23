@@ -11,6 +11,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import warnings
 warnings.filterwarnings("ignore")
 
+from domain.models import Document, FetchRecord, stable_id
+
 # Define a list of rotating user agents.
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
@@ -32,6 +34,8 @@ ALLOWED_CONTENT_TYPES = ("text/html", "application/xhtml+xml", "text/plain")
 _thread_local = threading.local()
 _logger = logging.getLogger(__name__)
 _last_scrape_status = []
+_last_scrape_documents = []
+_last_fetch_records = []
 
 
 def _normalize_url_data(url_data):
@@ -120,14 +124,33 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
     Scrapes a single URL using a robust Tor session.
     Returns a tuple (url, scraped_text).
     """
+    fetch_record, document, display_text = scrape_single_document(
+        url_data,
+        rotate=rotate,
+        rotate_interval=rotate_interval,
+        control_port=control_port,
+        control_password=control_password,
+    )
+    return fetch_record.url, display_text
+
+
+def scrape_single_document(url_data, rotate=False, rotate_interval=5, control_port=9051, control_password=None):
+    """
+    Scrapes a single URL and returns typed fetch/document records plus UI display text.
+    Internal document text is capped by MAX_EXTRACTED_TEXT_CHARS, not MAX_RETURN_CHARS.
+    """
     url, title = _normalize_url_data(url_data)
     if not url:
-        return "", title
+        fetch_record = FetchRecord(fetch_id=stable_id("fetch", ""), url="", status="invalid_url")
+        return fetch_record, None, title
 
     if not _is_safe_http_url(url):
-        return url, title
+        fetch_record = FetchRecord(fetch_id=stable_id("fetch", url), url=url, status="invalid_url")
+        return fetch_record, None, title
 
     use_tor = (urlparse(url).hostname or "").lower().endswith(".onion")
+    source_name = str(url_data.get("source") or (url_data.get("found_by_sources") or [""])[0] or "")
+    source_id = stable_id("src", source_name) if source_name else ""
 
     headers = {
         "User-Agent": random.choice(USER_AGENTS),
@@ -135,6 +158,8 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
     }
 
     response = None
+    fetch_record = FetchRecord(fetch_id=stable_id("fetch", url), url=url, status="pending")
+    document = None
     try:
         session = _get_session(use_tor=use_tor)
         if use_tor:
@@ -144,10 +169,28 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
             # Fallback for clearweb if needed, though tool focuses on dark web
             response = _request_with_redirect_policy(session, url, headers=headers, timeout=(5, 25))
 
+        final_url = getattr(response, "url", None) or url
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        fetch_record.final_url = final_url
+        fetch_record.status_code = response.status_code
+        fetch_record.content_type = content_type
+        fetch_record.metadata = {"headers": dict(response.headers)}
+
         if response.status_code == 200:
-            content_type = (response.headers.get("Content-Type") or "").lower()
             if content_type and not any(t in content_type for t in ALLOWED_CONTENT_TYPES):
-                return url, title
+                fetch_record.status = "unsupported_content_type"
+                document = Document.from_fetch(
+                    url=url,
+                    final_url=final_url,
+                    title=title,
+                    content_type=content_type,
+                    status_code=response.status_code,
+                    raw_html="",
+                    extracted_text=title,
+                    source_id=source_id,
+                    metadata={"unsupported_content_type": True},
+                )
+                return fetch_record, document, title
 
             chunks = []
             bytes_read = 0
@@ -158,10 +201,14 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
                 if bytes_read > MAX_DOWNLOAD_BYTES:
                     break
                 chunks.append(chunk)
+            fetch_record.bytes_read = bytes_read
 
             html = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
 
             soup = BeautifulSoup(html, "html.parser")
+            page_title = title
+            if soup.title and soup.title.get_text(strip=True):
+                page_title = soup.title.get_text(" ", strip=True)
             # Clean up text: remove scripts/styles
             for script in soup(["script", "style"]):
                 script.extract()
@@ -170,28 +217,79 @@ def scrape_single(url_data, rotate=False, rotate_interval=5, control_port=9051, 
             text = ' '.join(text.split())
             text = text[:MAX_EXTRACTED_TEXT_CHARS]
             scraped_text = f"{title} - {text}" if text else title
+            document = Document.from_fetch(
+                url=url,
+                final_url=final_url,
+                title=page_title or title,
+                content_type=content_type,
+                status_code=response.status_code,
+                raw_html=html,
+                extracted_text=scraped_text,
+                source_id=source_id,
+                metadata={"display_title": title, "truncated_at_chars": MAX_EXTRACTED_TEXT_CHARS if len(text) >= MAX_EXTRACTED_TEXT_CHARS else None},
+            )
+            fetch_record.status = "success"
         else:
             scraped_text = title
+            fetch_record.status = "http_error"
+            document = Document.from_fetch(
+                url=url,
+                final_url=final_url,
+                title=title,
+                content_type=content_type,
+                status_code=response.status_code,
+                raw_html="",
+                extracted_text=title,
+                source_id=source_id,
+            )
     except Exception as exc:
         # Return title only on failure, so we don't lose the reference
         _logger.debug("Failed to scrape url=%s: %s", url, exc)
         scraped_text = title
+        fetch_record.status = "error"
+        fetch_record.error = str(exc)[:200]
+        document = Document.from_fetch(
+            url=url,
+            final_url=url,
+            title=title,
+            content_type="",
+            status_code=None,
+            raw_html="",
+            extracted_text=title,
+            source_id=source_id,
+            metadata={"error": fetch_record.error},
+        )
     finally:
         if response is not None:
             response.close()
 
-    return url, scraped_text
+    return fetch_record, document, scraped_text
 
-def scrape_multiple(urls_data, max_workers=5):
+
+def _truncate_for_display(content: str) -> str:
+    if len(content) <= MAX_RETURN_CHARS:
+        return content
+    suffix = "...(truncated)"
+    if len(suffix) >= MAX_RETURN_CHARS:
+        return suffix[:MAX_RETURN_CHARS]
+    available = MAX_RETURN_CHARS - len(suffix)
+    return content[:available] + suffix
+
+
+def scrape_multiple_documents(urls_data, max_workers=5):
     """
-    Scrapes multiple URLs concurrently using a thread pool.
+    Scrapes multiple URLs concurrently and returns display content plus typed records.
     """
     global _last_scrape_status
+    global _last_scrape_documents
+    global _last_fetch_records
     results = {}
     statuses = []
+    documents = []
+    fetch_records = []
     max_workers = max(1, min(int(max_workers), 16))
     if not isinstance(urls_data, (list, tuple)):
-        return results
+        return {"content": results, "status": statuses, "documents": documents, "fetches": fetch_records}
 
     # Deduplicate links to reduce unnecessary requests under real workloads.
     unique_urls_data = []
@@ -210,24 +308,31 @@ def scrape_multiple(urls_data, max_workers=5):
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_url = {
-            executor.submit(scrape_single, url_data): url_data
+            executor.submit(scrape_single_document, url_data): url_data
             for url_data in unique_urls_data
         }
         for future in as_completed(future_to_url):
             try:
-                url, content = future.result()
+                fetch_record, document, content = future.result()
+                url = fetch_record.url
                 if not url:
                     continue
-                if len(content) > MAX_RETURN_CHARS:
-                    suffix = "...(truncated)"
-                    if len(suffix) >= MAX_RETURN_CHARS:
-                        # Fallback: ensure we never exceed MAX_RETURN_CHARS even if suffix is long
-                        content = suffix[:MAX_RETURN_CHARS]
-                    else:
-                        available = MAX_RETURN_CHARS - len(suffix)
-                        content = content[:available] + suffix
-                results[url] = content
-                statuses.append({"url": url, "status": "success", "chars": len(content)})
+                display_content = _truncate_for_display(content)
+                results[url] = display_content
+                fetch_records.append(fetch_record)
+                if document is not None:
+                    documents.append(document)
+                statuses.append(
+                    {
+                        "url": url,
+                        "status": fetch_record.status,
+                        "status_code": fetch_record.status_code,
+                        "chars": len(display_content),
+                        "document_chars": len(document.extracted_text) if document else 0,
+                        "doc_id": document.doc_id if document else "",
+                        "text_hash": document.text_hash if document else "",
+                    }
+                )
             except Exception as exc:
                 _logger.debug("Worker failed to scrape a URL: %s", exc)
                 source = future_to_url.get(future, {})
@@ -235,9 +340,31 @@ def scrape_multiple(urls_data, max_workers=5):
                 continue
 
     _last_scrape_status = statuses
-    return results
+    _last_scrape_documents = [document.model_dump(mode="json") for document in documents]
+    _last_fetch_records = [record.model_dump(mode="json") for record in fetch_records]
+    return {
+        "content": results,
+        "status": statuses,
+        "documents": _last_scrape_documents,
+        "fetches": _last_fetch_records,
+    }
+
+
+def scrape_multiple(urls_data, max_workers=5):
+    """
+    Backward-compatible scraper API returning only url -> display text.
+    """
+    return scrape_multiple_documents(urls_data, max_workers=max_workers).get("content", {})
 
 
 def get_last_scrape_status():
     return list(_last_scrape_status)
+
+
+def get_last_scrape_documents():
+    return list(_last_scrape_documents)
+
+
+def get_last_fetch_records():
+    return list(_last_fetch_records)
     

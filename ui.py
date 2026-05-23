@@ -2,21 +2,19 @@
 import base64
 import streamlit as st
 from datetime import datetime
-from artifacts import extract_artifacts, flatten_artifacts
-from investigations import load_investigations, save_investigation
+from artifacts import flatten_artifacts
+from domain.models import RunConfig
+from investigations import load_investigations
+from pipeline import run_pipeline
 from query_expansion import (
     ALLOWED_INTENTS,
-    annotate_results_with_scraped_content,
     build_expansion_context,
     classify_search_intent,
-    filter_qualified_results,
-    run_expanded_search,
-    single_query_plan,
 )
-from scrape import get_last_scrape_status, scrape_multiple
+from scrape import scrape_multiple_documents
 from search import get_source_count, search_sources
 from llm_utils import BufferedStreamingHandler, build_model_routing_plan, get_model_choices
-from llm import get_llm, refine_query, filter_results, generate_summary, PRESET_PROMPTS
+from llm import get_llm, PRESET_PROMPTS
 from config import (
     OPENAI_API_KEY,
     ANTHROPIC_API_KEY,
@@ -67,8 +65,7 @@ def cached_search_results(refined_query: str, threads: int):
 
 @st.cache_data(ttl=200, show_spinner=False)
 def cached_scrape_multiple(filtered: list, threads: int):
-    scraped = scrape_multiple(filtered, max_workers=threads)
-    return {"content": scraped, "status": get_last_scrape_status()}
+    return scrape_multiple_documents(filtered, max_workers=threads)
 
 
 def _status_label(status: str) -> str:
@@ -578,75 +575,65 @@ if run_button and query:
             except Exception as e:
                 _render_pipeline_error("load the selected LLM routing plan", e)
 
-    # Stage 2 - Refine query
-    with status_slot.container():
-        with st.spinner("🔄 Refining query..."):
-            try:
-                st.session_state.refined = refine_query(refine_llm, query)
-            except Exception as e:
-                _render_pipeline_error("refine the query", e)
+    # Pipeline execution
+    st.session_state.streamed_summary = ""
 
-    # Stage 3 - Search dark web
+    with findings_placeholder.container():
+        st.subheader(":red[Findings]", anchor=None, divider="gray")
+        summary_slot = st.empty()
+
+    def ui_emit(chunk: str):
+        st.session_state.streamed_summary += chunk
+        summary_slot.markdown(st.session_state.streamed_summary)
+
+    pipeline_config = RunConfig(
+        query=query,
+        model=model,
+        preset=selected_preset,
+        preset_label=selected_preset_label,
+        custom_instructions=custom_instructions,
+        expansion_mode=expansion_mode,
+        selected_search_intent=selected_search_intent,
+        expansion_context=expansion_context,
+        model_routing=st.session_state.model_routing_used,
+        max_results=max_results,
+        max_scrape=max_scrape,
+        search_workers=search_workers,
+        scrape_workers=threads,
+    )
+
     with status_slot.container():
-        with st.spinner("🔍 Searching dark web..."):
-            tor_health = check_tor_proxy()
-            if tor_health["status"] == "down":
-                st.error(f"Tor is not ready for searches yet: {tor_health['error']}")
-                st.stop()
-            if expansion_mode == "off":
-                search_payload = cached_search_results(
-                    st.session_state.refined, search_workers
-                )
-                inferred_intent = classify_search_intent(query, expansion_context)
-                search_payload["results"] = annotate_results_with_scraped_content(
-                    search_payload.get("results", []),
-                    {},
-                    query,
-                    expansion_context,
-                    selected_search_intent,
-                )
-                search_payload["qualified_results"] = filter_qualified_results(
-                    search_payload["results"],
-                    selected_search_intent,
-                )
-                search_payload["query_plan"] = single_query_plan(
-                    query,
-                    st.session_state.refined,
-                    mode="off",
-                    search_intent=selected_search_intent,
-                    inferred_intent=inferred_intent,
-                )
-                search_payload["query_runs"] = [
-                    {
-                        "query": st.session_state.refined,
-                        "query_type": "refined",
-                        "reason": "Single refined query.",
-                        "phase": "initial",
-                        "intent": selected_search_intent,
-                        "origin": "system",
-                        "sensitive": False,
-                        "result_count": len(search_payload.get("results", [])),
-                    }
-                ]
-                search_payload["query_expansion_mode"] = "off"
-            else:
-                search_payload = run_expanded_search(
+        with st.spinner("Running investigation pipeline..."):
+            try:
+                pipeline_state = run_pipeline(
+                    pipeline_config,
+                    refine_llm,
                     expansion_llm,
-                    base_query=query,
-                    refined_query=st.session_state.refined,
-                    context=expansion_context,
-                    mode=expansion_mode,
-                    search_intent=selected_search_intent,
-                    reporting_preset=selected_preset,
-                    max_workers=search_workers,
+                    triage_llm,
+                    report_llm,
+                    search_func=cached_search_results,
+                    scrape_func=cached_scrape_multiple,
+                    summary_stream_handler=BufferedStreamingHandler(ui_callback=ui_emit),
                 )
-            st.session_state.raw_results = search_payload.get("results", [])
-            st.session_state.results = list(search_payload.get("qualified_results", st.session_state.raw_results))
-            st.session_state.search_status = search_payload.get("sources", [])
-            st.session_state.query_plan = search_payload.get("query_plan", {})
-            st.session_state.query_runs = search_payload.get("query_runs", [])
-            st.session_state.query_expansion_mode_used = search_payload.get("query_expansion_mode", expansion_mode)
-            st.session_state.search_intent_used = (st.session_state.query_plan or {}).get("selected_intent", selected_search_intent)
+            except Exception as e:
+                _render_pipeline_error("run the investigation pipeline", e)
+
+    st.session_state.pipeline_state = pipeline_state.model_dump(mode="json")
+    st.session_state.refined = pipeline_state.refined_query
+    st.session_state.raw_results = pipeline_state.raw_results
+    st.session_state.results = pipeline_state.qualified_results
+    st.session_state.filtered = pipeline_state.filtered_results
+    st.session_state.scraped = pipeline_state.scraped_content
+    st.session_state.scrape_status = pipeline_state.scrape_status
+    st.session_state.artifacts = pipeline_state.artifacts
+    st.session_state.search_status = pipeline_state.search_status
+    st.session_state.query_plan = pipeline_state.query_plan
+    st.session_state.query_runs = pipeline_state.query_runs
+    st.session_state.query_expansion_mode_used = pipeline_state.query_expansion_mode
+    st.session_state.search_intent_used = pipeline_state.intent_metadata.get("selected_intent", selected_search_intent)
+    st.session_state.streamed_summary = pipeline_state.synthesis_report.summary or st.session_state.streamed_summary
+    _fname = pipeline_state.investigation_file
+
     if not st.session_state.results:
         with sources_placeholder.container():
             if st.session_state.raw_results:
@@ -661,86 +648,6 @@ if run_button and query:
             with st.expander("Source Status", expanded=True):
                 render_source_status(st.session_state.search_status)
         st.stop()
-    # Cap results before LLM filter step
-    if len(st.session_state.results) > max_results:
-        st.session_state.results = st.session_state.results[:max_results]
-
-    # Stage 4 - Filter results
-    with status_slot.container():
-        with st.spinner("🗂️ Filtering results..."):
-            st.session_state.filtered = filter_results(
-                triage_llm, st.session_state.refined, st.session_state.results
-            )
-    # Cap filtered results before scraping
-    if len(st.session_state.filtered) > max_scrape:
-        st.session_state.filtered = st.session_state.filtered[:max_scrape]
-
-    # Stage 5 - Scrape content
-    with status_slot.container():
-        with st.spinner("📜 Scraping content..."):
-            scrape_payload = cached_scrape_multiple(
-                st.session_state.filtered, threads
-            )
-            st.session_state.scraped = scrape_payload.get("content", {})
-            st.session_state.scrape_status = scrape_payload.get("status", [])
-            st.session_state.artifacts = extract_artifacts(
-                search_results=st.session_state.filtered,
-                scraped_content=st.session_state.scraped,
-            )
-            st.session_state.filtered = annotate_results_with_scraped_content(
-                st.session_state.filtered,
-                st.session_state.scraped,
-                query,
-                expansion_context,
-                st.session_state.search_intent_used,
-            )
-
-    # Stage 6 - Summarize (streaming)
-    st.session_state.streamed_summary = ""
-
-    with findings_placeholder.container():
-        st.subheader(":red[🔎 Findings]", anchor=None, divider="gray")
-        summary_slot = st.empty()
-
-    def ui_emit(chunk: str):
-        st.session_state.streamed_summary += chunk
-        summary_slot.markdown(st.session_state.streamed_summary)
-
-    with status_slot.container():
-        with st.spinner("✍️ Generating summary..."):
-            stream_handler = BufferedStreamingHandler(ui_callback=ui_emit)
-            report_llm.callbacks = [stream_handler]
-            _ = generate_summary(
-                report_llm, query, st.session_state.scraped,
-                preset=selected_preset, custom_instructions=custom_instructions,
-                artifacts=st.session_state.artifacts,
-                sources=st.session_state.filtered,
-                query_plan=st.session_state.query_plan,
-                query_runs=st.session_state.query_runs,
-            )
-
-    # Save investigation
-    _fname = save_investigation(
-        query=query,
-        refined_query=st.session_state.refined,
-        model=model,
-        preset_label=selected_preset_label,
-        sources=st.session_state.filtered,
-        source_provenance=st.session_state.raw_results,
-        search_status=st.session_state.search_status,
-        artifacts=st.session_state.artifacts,
-        scraped_urls=list(st.session_state.scraped.keys()),
-        query_plan=st.session_state.query_plan,
-        query_runs=st.session_state.query_runs,
-        query_expansion_mode=st.session_state.query_expansion_mode_used,
-        model_routing=st.session_state.model_routing_used,
-        intent_metadata={
-            "selected_intent": st.session_state.search_intent_used,
-            "inferred_intent": (st.session_state.query_plan or {}).get("inferred_intent", {}),
-            "warnings": (st.session_state.query_plan or {}).get("warnings", []),
-        },
-        summary=st.session_state.streamed_summary,
-    )
 
     # Render organized sections
     with notes_placeholder.container():

@@ -37,6 +37,8 @@ class InvestigationPersistenceTests(unittest.TestCase):
             loaded = load_investigations(directory)
 
         self.assertEqual(len(loaded), 1)
+        self.assertEqual(loaded[0]["schema_version"], "2.0")
+        self.assertTrue(loaded[0]["run_id"].startswith("run_"))
         self.assertEqual(loaded[0]["query"], "query")
         self.assertEqual(loaded[0]["search_status"][0]["name"], "Fixture")
         self.assertEqual(loaded[0]["artifacts"]["emails"][0]["value"], "admin@example.com")
@@ -72,6 +74,10 @@ class InvestigationPersistenceTests(unittest.TestCase):
         self.assertEqual(loaded[0]["query_expansion_mode"], "off")
         self.assertEqual(loaded[0]["intent_metadata"], {})
         self.assertEqual(loaded[0]["model_routing"], {})
+        self.assertEqual(loaded[0]["schema_version"], "1.0")
+        self.assertEqual(loaded[0]["run_id"], "")
+        self.assertEqual(loaded[0]["documents"], [])
+        self.assertEqual(loaded[0]["stage_status"], [])
 
 
 if __name__ == "__main__":

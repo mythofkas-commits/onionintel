@@ -1,11 +1,6 @@
-import requests
+import importlib
 from urllib.parse import urljoin
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
 from typing import Callable, Optional, List
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.callbacks.base import BaseCallbackHandler
 import os
 from config import (
     OLLAMA_BASE_URL,
@@ -16,6 +11,30 @@ from config import (
     ANTHROPIC_API_KEY,
     LLAMA_CPP_BASE_URL,
 )
+
+try:
+    from langchain_core.callbacks.base import BaseCallbackHandler
+except ImportError:
+    class BaseCallbackHandler:
+        pass
+
+
+CHAT_OPENAI = "langchain_openai.ChatOpenAI"
+CHAT_OLLAMA = "langchain_ollama.ChatOllama"
+CHAT_ANTHROPIC = "langchain_anthropic.ChatAnthropic"
+CHAT_GOOGLE = "langchain_google_genai.ChatGoogleGenerativeAI"
+
+
+def _load_class(path: str):
+    module_name, class_name = path.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+def _request_get(url: str, timeout: int = 3):
+    import requests
+
+    return requests.get(url, timeout=timeout)
 
 
 class BufferedStreamingHandler(BaseCallbackHandler):
@@ -55,59 +74,59 @@ _common_llm_params = {
 # Each config includes the class and any model-specific constructor parameters
 _llm_config_map = {
     'gpt-5.4': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5.4'}
     },
     'gpt-5.4-mini': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5.4-mini'}
     },
     'gpt-5.4-nano': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5.4-nano'}
     },
     'gpt-4.1': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-4.1'} 
     },
     'gpt-5.2': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5.2'} 
     },
     'gpt-5.1': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5.1'} 
     },
     'gpt-5-mini': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5-mini'} 
     },
     'gpt-5-nano': { 
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {'model_name': 'gpt-5-nano'} 
     },
     'claude-sonnet-4-5': {
-        'class': ChatAnthropic,
+        'class': CHAT_ANTHROPIC,
         'constructor_params': {'model': 'claude-sonnet-4-5'}
     },
     'claude-sonnet-4-0': {
-        'class': ChatAnthropic,
+        'class': CHAT_ANTHROPIC,
         'constructor_params': {'model': 'claude-sonnet-4-0'}
     },
     'gemini-2.5-flash': {
-        'class': ChatGoogleGenerativeAI,
+        'class': CHAT_GOOGLE,
         'constructor_params': {'model': 'gemini-2.5-flash', 'google_api_key': GOOGLE_API_KEY }
     },
     'gemini-2.5-flash-lite': {
-        'class': ChatGoogleGenerativeAI,
+        'class': CHAT_GOOGLE,
         'constructor_params': {'model': 'gemini-2.5-flash-lite', 'google_api_key': GOOGLE_API_KEY}
     },
     'gemini-2.5-pro': {
-        'class': ChatGoogleGenerativeAI,
+        'class': CHAT_GOOGLE,
         'constructor_params': {'model': 'gemini-2.5-pro', 'google_api_key': GOOGLE_API_KEY}
     },
     'qwen3-80b-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'qwen/qwen3-next-80b-a3b-instruct:free',
             'base_url': OPENROUTER_BASE_URL,
@@ -115,7 +134,7 @@ _llm_config_map = {
         }
     },
     'nemotron-nano-9b-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'nvidia/nemotron-nano-9b-v2:free',
             'base_url': OPENROUTER_BASE_URL,
@@ -123,7 +142,7 @@ _llm_config_map = {
         }
     },
     'gpt-oss-120b-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'openai/gpt-oss-120b:free',
             'base_url': OPENROUTER_BASE_URL,
@@ -131,7 +150,7 @@ _llm_config_map = {
         }
     },
     'gpt-5.1-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'openai/gpt-5.1',
             'base_url': OPENROUTER_BASE_URL,
@@ -139,7 +158,7 @@ _llm_config_map = {
         }
     },
     'gpt-5-mini-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'openai/gpt-5-mini',
             'base_url': OPENROUTER_BASE_URL,
@@ -147,7 +166,7 @@ _llm_config_map = {
         }
     },
     'claude-sonnet-4.5-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'anthropic/claude-sonnet-4.5',
             'base_url': OPENROUTER_BASE_URL,
@@ -155,7 +174,7 @@ _llm_config_map = {
         }
     },
     'grok-4.1-fast-openrouter': {
-        'class': ChatOpenAI,
+        'class': CHAT_OPENAI,
         'constructor_params': {
             'model_name': 'x-ai/grok-4.1-fast',
             'base_url': OPENROUTER_BASE_URL,
@@ -218,7 +237,7 @@ def fetch_ollama_models() -> List[str]:
         return []
 
     try:
-        resp = requests.get(urljoin(base_url, "api/tags"), timeout=3)
+        resp = _request_get(urljoin(base_url, "api/tags"), timeout=3)
         resp.raise_for_status()
         models = resp.json().get("models", [])
         available = []
@@ -227,7 +246,7 @@ def fetch_ollama_models() -> List[str]:
             if name:
                 available.append(name)
         return available
-    except (requests.RequestException, ValueError):
+    except Exception:
         return []
 
 
@@ -242,11 +261,11 @@ def fetch_llama_cpp_models() -> List[str]:
 
     base = LLAMA_CPP_BASE_URL.rstrip("/")
     try:
-        resp = requests.get(f"{base}/v1/models", timeout=3)
+        resp = _request_get(f"{base}/v1/models", timeout=3)
         resp.raise_for_status()
         data = resp.json().get("data", [])
         return [m["id"] for m in data if "id" in m]
-    except (requests.RequestException, ValueError, KeyError):
+    except Exception:
         return []
 
 
@@ -273,25 +292,25 @@ def get_model_choices() -> List[str]:
         ctor = cfg.get("constructor_params", {}) or {}
 
         # OpenRouter models (ChatOpenAI with base_url set to OpenRouter)
-        if cls is ChatOpenAI and (ctor.get("base_url") == OPENROUTER_BASE_URL or "openrouter" in k):
+        if cls == CHAT_OPENAI and (ctor.get("base_url") == OPENROUTER_BASE_URL or "openrouter" in k):
             if openrouter_ok:
                 gated_base_models.append(k)
             continue
 
         # Direct OpenAI models
-        if cls is ChatOpenAI:
+        if cls == CHAT_OPENAI:
             if openai_ok:
                 gated_base_models.append(k)
             continue
 
         # Anthropic
-        if cls is ChatAnthropic:
+        if cls == CHAT_ANTHROPIC:
             if anthropic_ok:
                 gated_base_models.append(k)
             continue
 
         # Google Gemini
-        if cls is ChatGoogleGenerativeAI:
+        if cls == CHAT_GOOGLE:
             if google_ok:
                 gated_base_models.append(k)
             continue
@@ -364,13 +383,13 @@ def resolve_model_config(model_choice: str):
     model_choice_lower = _normalize_model_name(model_choice)
     config = _llm_config_map.get(model_choice_lower)
     if config:
-        return config
+        return {**config, "class": _load_class(config["class"])}
 
     # llama.cpp (OpenAI-compatible)
     for llama_model in fetch_llama_cpp_models():
         if _normalize_model_name(llama_model) == model_choice_lower:
             return {
-                "class": ChatOpenAI,
+                "class": _load_class(CHAT_OPENAI),
                 "constructor_params": {
                     "model_name": llama_model,
                     "base_url": LLAMA_CPP_BASE_URL,
@@ -381,7 +400,7 @@ def resolve_model_config(model_choice: str):
     for ollama_model in fetch_ollama_models():
         if _normalize_model_name(ollama_model) == model_choice_lower:
             return {
-                "class": ChatOllama,
+                "class": _load_class(CHAT_OLLAMA),
                 "constructor_params": {"model": ollama_model, "base_url": OLLAMA_BASE_URL},
             }
 
