@@ -1,0 +1,13 @@
+sources:
+  - id: fixture_known_site_monitor
+    name: Fixture Known Site Monitor
+    category: known_site
+    access: direct
+    enabled: false
+    supports_query: false
+    site_url: "https://example.com/"
+    timeout: 20
+    tags:
+      - monitor
+      - fixture
+    notes: "Disabled placeholder proving the catalog shape for approved site monitors."

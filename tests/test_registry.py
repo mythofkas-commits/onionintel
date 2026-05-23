@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from registry.loaders import load_source_specs, source_config_to_spec, source_spec_to_config
+from registry.loaders import load_source_catalog, load_source_specs, source_config_to_spec, source_spec_to_config
 from sources import SourceConfig
 
 
@@ -37,6 +37,52 @@ sources:
         self.assertEqual(round_tripped.name, config.name)
         self.assertEqual(round_tripped.url_template, config.url_template)
         self.assertEqual(round_tripped.parser, "torch")
+
+    def test_loads_mixed_catalog_files_in_canonical_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "search_engines.yml").write_text(
+                """
+sources:
+  - id: search_fixture
+    name: Search Fixture
+    category: search_engine
+    access: tor
+    url_template: "http://fixtureabcdefghijklmnop.onion/search?q={query}"
+""",
+                encoding="utf-8",
+            )
+            (root / "public_feeds.yml").write_text(
+                """
+sources:
+  - id: feed_fixture
+    name: Feed Fixture
+    category: api_feed
+    access: direct
+    enabled: false
+    supports_query: false
+    feed_url: "https://example.com/feed.json"
+""",
+                encoding="utf-8",
+            )
+            (root / "site_monitors.yml").write_text(
+                """
+sources:
+  - id: site_fixture
+    name: Site Fixture
+    category: known_site
+    access: direct
+    enabled: false
+    supports_query: false
+    site_url: "https://example.com/"
+""",
+                encoding="utf-8",
+            )
+
+            specs = load_source_catalog(root)
+
+        self.assertEqual([spec.id for spec in specs], ["search_fixture", "feed_fixture", "site_fixture"])
+        self.assertEqual([spec.category for spec in specs], ["search_engine", "api_feed", "known_site"])
 
 
 if __name__ == "__main__":

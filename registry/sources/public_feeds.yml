@@ -1,0 +1,27 @@
+sources:
+  - id: cisa_kev
+    name: CISA Known Exploited Vulnerabilities
+    category: api_feed
+    access: direct
+    enabled: false
+    supports_query: false
+    feed_url: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    timeout: 30
+    tags:
+      - cve
+      - vulnerability
+      - public-feed
+    notes: "Disabled until enrichment scheduling and source-specific parsing are added."
+  - id: urlhaus_recent
+    name: URLhaus Recent URLs
+    category: api_feed
+    access: direct
+    enabled: false
+    supports_query: false
+    feed_url: "https://urlhaus.abuse.ch/downloads/json_recent/"
+    timeout: 30
+    tags:
+      - malware-url
+      - public-feed
+      - abuse-ch
+    notes: "Disabled until feed ingestion cadence and parser normalization are added."

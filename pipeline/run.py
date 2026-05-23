@@ -30,6 +30,7 @@ from health import check_tor_proxy
 from investigations import save_investigation
 from llm import filter_results, generate_summary, refine_query
 from normalize.entities import artifacts_to_entities_v2
+from connectors.runner import collect_sources
 from pipeline.pivots import generate_pivot_candidates
 from query_expansion import (
     annotate_results_with_scraped_content,
@@ -40,7 +41,6 @@ from query_expansion import (
 )
 from ranking.relevance import rank_documents, rank_search_results
 from scrape import scrape_multiple_documents
-from search import search_sources
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def run_pipeline(
     triage_llm,
     report_llm,
     *,
-    search_func: Callable[..., dict[str, Any]] = search_sources,
+    search_func: Callable[..., dict[str, Any]] = collect_sources,
     expanded_search_func: Callable[..., dict[str, Any]] = run_expanded_search,
     scrape_func: Callable[..., dict[str, Any]] = scrape_multiple_documents,
     tor_check_func: Callable[[], dict[str, Any]] = check_tor_proxy,

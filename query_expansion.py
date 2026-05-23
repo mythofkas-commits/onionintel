@@ -5,7 +5,7 @@ from typing import Callable, Dict, Iterable, List, Optional
 from urllib.parse import urlparse
 
 from artifacts import extract_artifacts, flatten_artifacts
-from sources import search_sources
+from connectors.runner import collect_sources
 
 CONSERVATIVE_LIMIT = 12
 EXPLORATORY_LIMIT = 20
@@ -293,7 +293,7 @@ def parse_query_plan_output(raw_output: str) -> List[Dict[str, str]]:
 def search_query_entries(
     query_entries: Iterable[Dict[str, str]],
     max_workers: int = 5,
-    search_fn: Callable[..., Dict[str, object]] = search_sources,
+    search_fn: Callable[..., Dict[str, object]] = collect_sources,
     base_query: str = "",
     context: Optional[Dict[str, str]] = None,
     search_intent: str = "freeform_threat",
@@ -354,7 +354,7 @@ def run_expanded_search(
     search_intent: Optional[str] = None,
     reporting_preset: Optional[str] = None,
     max_workers: int = 5,
-    search_fn: Callable[..., Dict[str, object]] = search_sources,
+    search_fn: Callable[..., Dict[str, object]] = collect_sources,
 ) -> Dict[str, object]:
     normalized_mode = normalize_mode(mode)
     context = context or {}

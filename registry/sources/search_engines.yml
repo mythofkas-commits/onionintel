@@ -1,0 +1,163 @@
+sources:
+  - name: Ahmia
+    url_template: "http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion/search/?q={query}"
+    enabled: true
+    parser: ahmia
+    timeout: 40
+    notes: "Open onion search engine. Uses tokenized form adapter; validated 2026-05-19."
+  - name: Torch
+    url_template: "http://torchdeedp3i2jigzjdmfpn5ttjhthh5wbmda2rr3jvqjg5p77c54dqd.onion/search?query={query}"
+    enabled: true
+    parser: torch
+    timeout: 40
+    notes: "High-recall onion search engine. Parser restricted to result containers; validated 2026-05-19."
+  - name: VormWeb
+    url_template: "http://volkancfgpi4c7ghph6id2t7vcntenuly66qjt6oedwtjmyj4tkk5oqd.onion/search?q={query}"
+    enabled: true
+    parser: vormweb
+    timeout: 40
+    notes: "Open onion search engine with query-dependent results; validated 2026-05-19."
+  - name: Lantern
+    url_template: "http://lanternsw767dclxwyopcjietqsci4mvk3u2dutzteyi4lnvkd4x2rad.onion/search?q={query}"
+    enabled: true
+    parser: lantern
+    timeout: 40
+    notes: "Tor-native onion search engine. Parser excludes ads/pagination and uses search result cards; validated 2026-05-19."
+  - name: OnionFind
+    url_template: "https://onionfind.com/search?q={query}"
+    enabled: true
+    parser: onionfind
+    timeout: 40
+    notes: "Clearnet onion directory search with query-dependent results; validated 2026-05-19."
+  - name: TorSearch
+    url_template: "https://torsearch.com/search?query={query}"
+    enabled: true
+    parser: torsearch
+    timeout: 40
+    notes: "Clearnet onion search with stricter query-token filtering to reduce fixed/promoted results; validated 2026-05-19."
+  - name: Haystak
+    url_template: "http://haystak5njsmn2hqkewecpaxetahtwhsbsa64jom2k22z5afxhnpxfid.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 18
+    notes: "High-profile onion search engine. Public references often mark mirrors unstable/offline; enabled so health/search can auto-skip if unreachable."
+  - name: Not Evil
+    url_template: "http://notevil2kzd3q5ig2vw4gwjdm75zbe2g2b4ix5ruo3ocs3aeop4ptid.onion/index.php?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 18
+    notes: "Not Evil-style onion search candidate from 2026 public listings. Tor root validation failed during this pass; enabled with runtime health/status auto-skip."
+  - name: TorDex
+    url_template: "http://tordexu73joywapk2txdr54jed4imqledpcvcuf75qsas2gwdgksvnyd.onion/search?query={query}"
+    enabled: true
+    parser: generic
+    timeout: 25
+    notes: "Dark-web-discovered TorDex onion. Root and search form validated over Tor on 2026-05-20."
+  - name: Bobby
+    url_template: "http://bobby64o755x3gsuznts6hf6agxqjcz5bop6hs7ejorekbm7omes34ad.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 25
+    notes: "Dark-web-discovered Bobby darknet search engine. Root and search form validated over Tor on 2026-05-20."
+  - name: TorSearch Onion
+    url_template: "http://tth4he7kdfmfwq2k7yaj2ggjdva7rdpbch42q6xgoorbabjeklyfbmyd.onion/search?query={query}"
+    enabled: true
+    parser: torsearch
+    timeout: 25
+    notes: "Dark-web-discovered onion mirror for Tor Search. Root and search form validated over Tor on 2026-05-20."
+  - name: Onion Search Engine
+    url_template: "http://37djtvjcpiprohcrlyvlhfil45kdlfizsyvilqskgvdrafn5mocz4cid.onion/search.php?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 25
+    notes: "Current onion search engine from live web discovery; root and search form validated over Tor on 2026-05-20."
+  - name: OnionLand
+    url_template: "http://3bbad7fauom4d6sgppalyqddsqbf5u5p56b5k5uk2zxsy3d6ey2jobad.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Torgle
+    url_template: "http://iy3544gmoeclh5de6gez2256v6pjh4omhpqdh2wpeeppjtvqmjhkfwad.onion/torgle/?query={query}"
+    enabled: false
+    parser: generic
+    timeout: 40
+    notes: "Disabled by default after Tor health check failed on 2026-05-19; re-enable if it returns."
+  - name: Amnesia
+    url_template: "http://amnesia7u5odx5xbwtpnqk3edybgud5bmiagu75bnqx2crntw5kry7ad.onion/search?query={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Kaizer
+    url_template: "http://kaizerwfvp5gxu6cppibp7jhcqptavq3iqef66wbxenh6a2fklibdvid.onion/search?q={query}"
+    enabled: false
+    parser: generic
+    timeout: 40
+    notes: "Disabled by default after Tor health check failed on 2026-05-19; re-enable if it returns."
+  - name: Anima
+    url_template: "http://anima4ffe27xmakwnseih3ic2y7y3l6e7fucwk4oerdn4odf7k74tbid.onion/search?q={query}"
+    enabled: false
+    parser: generic
+    timeout: 40
+    notes: "Disabled by default after Tor health check failed on 2026-05-19; re-enable if it returns."
+  - name: Tornado
+    url_template: "http://tornadoxn3viscgz647shlysdy7ea5zqzwda7hierekeuokh5eh5b3qd.onion/search?q={query}"
+    enabled: false
+    parser: generic
+    timeout: 40
+    notes: "Disabled by default after Tor health check failed on 2026-05-19; re-enable if it returns."
+  - name: TorNet
+    url_template: "http://tornetupfu7gcgidt33ftnungxzyfq2pygui5qdoyss34xbgx2qruzid.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Torland
+    url_template: "http://torlbmqwtudkorme6prgfpmsnile7ug2zm4u3ejpcncxuhpu4k2j4kyd.onion/index.php?a=search&q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Find Tor
+    url_template: "http://findtorroveq5wdnipkaojfpqulxnkhblymc7aramjzajcvpptd4rjqd.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Excavator
+    url_template: "http://2fd6cemt4gmccflhm6imvdfvli3nf7zn6rfrwpsy7uhxrgbypvwf5fad.onion/search?query={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Onionway
+    url_template: "http://oniwayzz74cv2puhsgx4dpjwieww4wdphsydqvf5q7eyz4myjvyw26ad.onion/search.php?s={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Tor66
+    url_template: "http://tor66sewebgixwhcqfnp5inzp5x5uohhdy3kvtnyfxc2e5mxiuh34iid.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: OSS
+    url_template: "http://3fzh7yuupdfyjhwt3ugzqqof6ulbcl27ecev33knxe3u7goi3vfn2qqd.onion/oss/index.php?search={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: Torgol
+    url_template: "http://torgolnpeouim56dykfob6jh5r2ps2j73enc42s2um4ufob3ny4fcdyd.onion/?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."
+  - name: The Deep Searches
+    url_template: "http://searchgf7gdtauh7bhnbyed4ivxqmuoat3nm6zfrg3ymkq6mtnpye3ad.onion/search?q={query}"
+    enabled: true
+    parser: generic
+    timeout: 40
+    notes: "Open onion search engine."

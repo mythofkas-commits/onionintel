@@ -90,15 +90,16 @@ class SourceRecord(OnionIntelModel):
     def from_status(cls, item: dict[str, Any]) -> "SourceRecord":
         name = str(item.get("name") or "unknown")
         return cls(
-            source_id=stable_id("src", name),
+            source_id=str(item.get("source_id") or stable_id("src", name)),
             name=name,
             status=str(item.get("status") or "unknown"),
+            connector_id=str(item.get("connector_id") or "search_engine"),
             parser=str(item.get("parser") or "generic"),
             enabled=bool(item.get("enabled", True)),
             result_count=int(item.get("result_count") or 0),
             latency_ms=item.get("latency_ms"),
             error=item.get("error"),
-            metadata={k: v for k, v in item.items() if k not in {"name", "status", "parser", "enabled", "result_count", "latency_ms", "error"}},
+            metadata={k: v for k, v in item.items() if k not in {"name", "source_id", "status", "connector_id", "parser", "enabled", "result_count", "latency_ms", "error"}},
         )
 
 

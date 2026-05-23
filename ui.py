@@ -3,6 +3,7 @@ import base64
 import streamlit as st
 from datetime import datetime
 from artifacts import flatten_artifacts
+from connectors.runner import collect_sources
 from domain.models import RunConfig
 from investigations import load_investigations
 from pipeline import run_pipeline
@@ -12,7 +13,7 @@ from query_expansion import (
     classify_search_intent,
 )
 from scrape import scrape_multiple_documents
-from search import get_source_count, search_sources
+from search import get_source_count
 from llm_utils import BufferedStreamingHandler, build_model_routing_plan, get_model_choices
 from llm import get_llm, PRESET_PROMPTS
 from config import (
@@ -60,7 +61,7 @@ def _render_pipeline_error(stage: str, err: Exception) -> None:
 # Cache expensive backend calls
 @st.cache_data(ttl=200, show_spinner=False)
 def cached_search_results(refined_query: str, threads: int):
-    return search_sources(refined_query, max_workers=threads)
+    return collect_sources(refined_query, max_workers=threads)
 
 
 @st.cache_data(ttl=200, show_spinner=False)

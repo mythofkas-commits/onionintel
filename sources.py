@@ -124,10 +124,10 @@ def _load_simple_sources_yaml(text: str) -> List[Dict[str, object]]:
 
 def load_source_configs(path: Path = SOURCE_REGISTRY_PATH) -> List[SourceConfig]:
     try:
-        specs = load_source_specs(path)
+        specs = load_source_specs(None if path == SOURCE_REGISTRY_PATH else path)
     except (json.JSONDecodeError, ValueError) as exc:
         raise SourceRegistryError(f"Invalid source registry: {exc}") from exc
-    return [source_spec_to_config(spec) for spec in specs]
+    return [source_spec_to_config(spec) for spec in specs if spec.category == "search_engine"]
 
 
 def get_enabled_sources(skip_unhealthy: bool = True) -> List[SourceConfig]:
